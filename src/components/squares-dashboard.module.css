@@ -1,7 +1,7 @@
 .page {
   min-height: 100vh;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   padding: 2rem 1rem 4rem;
 }
 
@@ -296,6 +296,10 @@
 .tableWrap {
   width: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
 }
 
 .tableWrap table {
@@ -336,6 +340,8 @@
 
 .heatmap {
   --axis-size: 36px;
+  width: max-content;
+  min-width: 100%;
 }
 
 .heatmap .heatmapTopCorner {
@@ -459,9 +465,36 @@
 }
 
 @media (max-width: 900px) {
+  .page {
+    padding: 1rem 0.6rem 2rem;
+  }
+
+  .shell {
+    gap: 0.75rem;
+  }
+
+  .panel {
+    padding: 0.8rem;
+    border-radius: 16px;
+  }
+
   .gridSection,
   .formRow {
     grid-template-columns: 1fr;
+  }
+
+  .priceLabel {
+    max-width: none;
+  }
+
+  .calcButton {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .tableWrap {
+    margin: 0 -0.25rem;
+    padding-bottom: 0.2rem;
   }
 
   .panelHeader,
