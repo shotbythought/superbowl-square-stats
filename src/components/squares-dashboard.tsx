@@ -44,6 +44,31 @@ function normalizeTeam(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+function compactTeamLabel(value: string): string {
+  const team = value.trim();
+  if (!team) {
+    return "TEAM";
+  }
+
+  const tokens = team.split(/\s+/);
+  const explicitAbbr = tokens.find((token) => /^[A-Z]{2,4}$/.test(token));
+  if (explicitAbbr) {
+    return explicitAbbr;
+  }
+
+  if (tokens.length >= 2) {
+    const initials = tokens
+      .filter((token) => /^[A-Za-z]/.test(token))
+      .map((token) => token.charAt(0).toUpperCase())
+      .join("");
+    if (initials.length >= 2 && initials.length <= 4) {
+      return initials;
+    }
+  }
+
+  return tokens[tokens.length - 1].slice(0, 4).toUpperCase();
+}
+
 function heatColor(value: number, min: number, max: number): string {
   const range = Math.max(max - min, 0.000001);
   const t = (value - min) / range;
@@ -293,6 +318,9 @@ export function SquaresDashboard() {
     };
   }, [analysis]);
 
+  const topSquaresHomeLabel = useMemo(() => compactTeamLabel(board?.homeTeam ?? "Home Team"), [board]);
+  const topSquaresAwayLabel = useMemo(() => compactTeamLabel(board?.awayTeam ?? "Away Team"), [board]);
+
   return (
     <div className={styles.page}>
       <div className={styles.bgGlowOne} />
@@ -480,7 +508,7 @@ export function SquaresDashboard() {
                   </label>
                 </div>
                 <div className={styles.tableWrap}>
-                  <table>
+                  <table className={styles.topSquaresTable}>
                     <thead>
                       <tr>
                         <th>
@@ -488,14 +516,22 @@ export function SquaresDashboard() {
                             Owner{sortMarker("owner", topSquaresSort)}
                           </button>
                         </th>
-                        <th>
-                          <button className={styles.sortButton} onClick={() => setTopSquaresSortFor("homeDigit")}>
-                            Home Digit{sortMarker("homeDigit", topSquaresSort)}
+                        <th className={styles.teamDigitColumn}>
+                          <button
+                            className={styles.sortButton}
+                            onClick={() => setTopSquaresSortFor("homeDigit")}
+                            title={`${board.homeTeam} digit`}
+                          >
+                            {topSquaresHomeLabel} #{sortMarker("homeDigit", topSquaresSort)}
                           </button>
                         </th>
-                        <th>
-                          <button className={styles.sortButton} onClick={() => setTopSquaresSortFor("awayDigit")}>
-                            Away Digit{sortMarker("awayDigit", topSquaresSort)}
+                        <th className={styles.teamDigitColumn}>
+                          <button
+                            className={styles.sortButton}
+                            onClick={() => setTopSquaresSortFor("awayDigit")}
+                            title={`${board.awayTeam} digit`}
+                          >
+                            {topSquaresAwayLabel} #{sortMarker("awayDigit", topSquaresSort)}
                           </button>
                         </th>
                         <th>
@@ -514,8 +550,8 @@ export function SquaresDashboard() {
                       {filteredAndSortedTopSquares.slice(0, 12).map((square, index) => (
                         <tr key={`${square.owner}-${square.homeDigit}-${square.awayDigit}-${index}`}>
                           <td>{square.owner}</td>
-                          <td>{square.homeDigit}</td>
-                          <td>{square.awayDigit}</td>
+                          <td className={styles.teamDigitCell}>{square.homeDigit}</td>
+                          <td className={styles.teamDigitCell}>{square.awayDigit}</td>
                           <td>{pct.format(square.probability)}</td>
                           <td>{money.format(square.ev)}</td>
                         </tr>

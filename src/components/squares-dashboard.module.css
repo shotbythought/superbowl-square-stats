@@ -41,6 +41,10 @@
   gap: 1rem;
 }
 
+.shell > * {
+  min-width: 0;
+}
+
 .hero {
   display: grid;
   gap: 0.75rem;
@@ -80,6 +84,7 @@
   padding: 1rem;
   box-shadow: 0 10px 22px rgba(8, 42, 77, 0.08);
   backdrop-filter: blur(10px);
+  min-width: 0;
 }
 
 .panelHeader {
@@ -151,6 +156,10 @@
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gridSection > * {
+  min-width: 0;
 }
 
 .setupCard {
@@ -298,14 +307,19 @@
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-x;
-  overscroll-behavior-x: contain;
+  touch-action: auto;
 }
 
 .tableWrap table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
   border-collapse: collapse;
   font-size: 0.86rem;
+}
+
+.tableWrap table:not(.heatmap) {
+  min-width: 640px;
 }
 
 .tableWrap th,
@@ -314,6 +328,19 @@
   text-align: left;
   padding: 0.5rem;
   vertical-align: top;
+  white-space: nowrap;
+}
+
+.topSquaresTable .teamDigitColumn,
+.topSquaresTable .teamDigitCell {
+  width: 78px;
+  min-width: 78px;
+  max-width: 78px;
+  text-align: center;
+}
+
+.topSquaresTable .teamDigitCell {
+  font-variant-numeric: tabular-nums;
 }
 
 .sortButton {
@@ -495,6 +522,10 @@
   .tableWrap {
     margin: 0 -0.25rem;
     padding-bottom: 0.2rem;
+  }
+
+  .tableWrap table:not(.heatmap) {
+    min-width: 560px;
   }
 
   .panelHeader,
