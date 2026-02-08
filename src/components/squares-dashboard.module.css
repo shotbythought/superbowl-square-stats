@@ -319,7 +319,8 @@
 }
 
 .tableWrap table:not(.heatmap) {
-  min-width: 640px;
+  width: 100%;
+  min-width: 0;
 }
 
 .tableWrap th,
@@ -328,6 +329,9 @@
   text-align: left;
   padding: 0.5rem;
   vertical-align: top;
+}
+
+.tableWrap th {
   white-space: nowrap;
 }
 

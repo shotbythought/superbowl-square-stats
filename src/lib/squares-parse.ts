@@ -40,7 +40,7 @@ function parseCsvLine(line: string, delimiter = ","): string[] {
 }
 
 function unwrapTextBlock(text: string): string {
-  let trimmed = text.trim();
+  const trimmed = text.trim();
 
   const wrappers: Array<[string, string]> = [
     ["```", "```"],
@@ -53,12 +53,13 @@ function unwrapTextBlock(text: string): string {
 
   for (const [start, end] of wrappers) {
     if (trimmed.startsWith(start) && trimmed.endsWith(end) && trimmed.length > start.length + end.length) {
-      trimmed = trimmed.slice(start.length, trimmed.length - end.length).trim();
-      break;
+      return trimmed.slice(start.length, trimmed.length - end.length).trim();
     }
   }
 
-  return trimmed;
+  // Preserve leading tabs/spaces from the first data line (important for TSV top-left blank cell).
+  // Only strip surrounding blank lines when no wrapper was applied.
+  return text.replace(/^\s*\n+/, "").replace(/\n+\s*$/, "");
 }
 
 function maybeDigit(value: string): number | null {
@@ -97,10 +98,11 @@ function parseRows(text: string): string[][] {
     .replace(/\r/g, "")
     .replace(/```/g, "");
 
+  // Preserve leading tabs/spaces so empty top-left header cells stay aligned in pasted Excel TSV.
   const lines = cleanedText
     .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+    .map((line) => line.replace(/\s+$/, ""))
+    .filter((line) => line.trim().length > 0);
 
   if (lines.some((line) => line.includes("\t"))) {
     return lines
