@@ -8,6 +8,59 @@ function normalizeCell(value: unknown): string {
   return String(value).replace(/\s+/g, " ").trim();
 }
 
+function parseCsvLine(line: string, delimiter = ","): string[] {
+  const cells: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+
+    if (char === "\"") {
+      if (inQuotes && line[i + 1] === "\"") {
+        current += "\"";
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === delimiter && !inQuotes) {
+      cells.push(current);
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  cells.push(current);
+  return cells;
+}
+
+function unwrapTextBlock(text: string): string {
+  let trimmed = text.trim();
+
+  const wrappers: Array<[string, string]> = [
+    ["```", "```"],
+    ["“", "”"],
+    ["\"", "\""],
+    ["'", "'"],
+    ["`", "`"],
+    ["(", ")"],
+  ];
+
+  for (const [start, end] of wrappers) {
+    if (trimmed.startsWith(start) && trimmed.endsWith(end) && trimmed.length > start.length + end.length) {
+      trimmed = trimmed.slice(start.length, trimmed.length - end.length).trim();
+      break;
+    }
+  }
+
+  return trimmed;
+}
+
 function maybeDigit(value: string): number | null {
   if (!value) {
     return null;
@@ -38,11 +91,124 @@ function extractDigitsFromRow(cells: string[]): { startCol: number; digits: numb
 }
 
 function parseRows(text: string): string[][] {
-  return text
+  const cleanedText = unwrapTextBlock(text)
+    .replace(/[\u00A0]/g, " ")
+    .replace(/[，]/g, ",")
     .replace(/\r/g, "")
+    .replace(/```/g, "");
+
+  const lines = cleanedText
     .split("\n")
-    .map((line) => line.split("\t").map(normalizeCell))
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  if (lines.some((line) => line.includes("\t"))) {
+    return lines
+      .map((line) => line.split("\t").map(normalizeCell))
+      .filter((row) => row.some((cell) => cell.length > 0));
+  }
+
+  const commaLines = lines.filter((line) => line.includes(",")).length;
+  const semicolonLines = lines.filter((line) => line.includes(";")).length;
+
+  if (commaLines === 0 && semicolonLines === 0) {
+    return lines.map((line) => [normalizeCell(line)]).filter((row) => row.some((cell) => cell.length > 0));
+  }
+
+  const delimiter = commaLines >= semicolonLines ? "," : ";";
+  const csvRows = lines
+    .map((line) => parseCsvLine(line, delimiter).map(normalizeCell))
     .filter((row) => row.some((cell) => cell.length > 0));
+
+  const targetColumns = Math.max(
+    1,
+    ...csvRows.map((row) => row.length),
+  );
+
+  const mergedRows: string[][] = [];
+  let pending: string[] | null = null;
+
+  for (const row of csvRows) {
+    if (row.length === targetColumns) {
+      if (pending) {
+        mergedRows.push(pending);
+        pending = null;
+      }
+      mergedRows.push(row);
+      continue;
+    }
+
+    if (!pending) {
+      pending = [...row];
+    } else if (pending.length < targetColumns && row.length < targetColumns) {
+      pending = [...pending, ...row];
+    } else {
+      mergedRows.push(pending);
+      pending = [...row];
+    }
+
+    if (pending.length >= targetColumns) {
+      mergedRows.push(pending.slice(0, targetColumns));
+      pending = pending.length > targetColumns ? pending.slice(targetColumns) : null;
+    }
+  }
+
+  if (pending && pending.some((cell) => cell.length > 0)) {
+    mergedRows.push(pending);
+  }
+
+  return mergedRows.filter((row) => row.some((cell) => cell.length > 0));
+}
+
+function editDistance(a: string, b: string): number {
+  const dp: number[][] = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0));
+
+  for (let i = 0; i <= a.length; i += 1) {
+    dp[i][0] = i;
+  }
+  for (let j = 0; j <= b.length; j += 1) {
+    dp[0][j] = j;
+  }
+
+  for (let i = 1; i <= a.length; i += 1) {
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost,
+      );
+    }
+  }
+
+  return dp[a.length][b.length];
+}
+
+function normalizeOwnerName(value: string): string {
+  const cleaned = normalizeCell(value);
+  if (!cleaned) {
+    return cleaned;
+  }
+
+  const lettersOnly = cleaned.toLowerCase().replace(/[^a-z]/g, "");
+  if (!lettersOnly) {
+    return cleaned;
+  }
+
+  const stevenVariants = new Set(["steven", "steve", "stevie", "stevo", "seven", "tseven"]);
+  if (stevenVariants.has(lettersOnly)) {
+    return "Steven";
+  }
+
+  if ((lettersOnly.startsWith("stev") || lettersOnly.endsWith("seven")) && lettersOnly.length <= 8) {
+    return "Steven";
+  }
+
+  if (lettersOnly.length >= 5 && lettersOnly.length <= 8 && editDistance(lettersOnly, "steven") <= 2) {
+    return "Steven";
+  }
+
+  return cleaned;
 }
 
 export function parseSquaresFromPastedText(text: string): SquaresBoard {
@@ -81,7 +247,7 @@ export function parseSquaresFromPastedText(text: string): SquaresBoard {
       continue;
     }
 
-    ownerRows.push(ownerSlice);
+    ownerRows.push(ownerSlice.map(normalizeOwnerName));
 
     const awayDigitFromLeft = startCol > 0 ? maybeDigit(row[startCol - 1] ?? "") : null;
     awayDigitsRaw.push(awayDigitFromLeft);
